@@ -18,6 +18,6 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: deepakpradeep24/ngnix:v0.1.0
+          image: deepakpradeep24/ngnix:v0.1.1
           ports: 
             - containerPort: 80
