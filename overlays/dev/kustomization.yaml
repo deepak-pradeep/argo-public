@@ -20,4 +20,4 @@ replacements:
           kind: EC2NodeClass
           name: default
         fieldPaths:
-          - spec.subnetSelectorTerms.0.tags.name
+          - spec.subnetSelectorTerms.0.tags.[karpenter.sh/discovery]

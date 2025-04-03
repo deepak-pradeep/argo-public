@@ -34,7 +34,7 @@ spec:
   amiFamily: AL2
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery/$cluster_name :"true"
+        karpenter.sh/discovery : $(cluster_name)
 
         # karpenter.sh/discovery/${cluster_name}: true
         # subnet_tag: placeholder
