@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui-msk
+    user: root
+    ports:
+      - 8080:8080
+    volumes:
+      - ~/.aws/credentials:/root/.aws/credentials
+      - ./libs/aws-msk-iam-auth-1.1.7-all.jar:/app/aws-msk-iam-auth.jar
+      - ~/.aws/config:/root/.aws/config    
+    environment:
+      - AWS_PROFILE=default
+      - KAFKA_CLUSTERS_0_NAME=AmazonMSK
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=boot-xcddb.testcluster.daddd8.c18.kafka.us-east-1.amazonaws.com:9198,boot-pddd.testcluster.ddddu18.c18.kafka.us-east-1.amazonaws.com:9198
+      - KAFKA_CLUSTERS_0_PROPERTIES_SECURITY_PROTOCOL=SASL_SSL
+      - KAFKA_CLUSTERS_0_PROPERTIES_SASL_MECHANISM=AWS_MSK_IAM
+      - KAFKA_CLUSTERS_0_PROPERTIES_SASL_JAAS_CONFIG=software.amazon.msk.auth.iam.IAMLoginModule required;
+      - KAFKA_CLUSTERS_0_PROPERTIES_SASL_CLIENT_CALLBACK_HANDLER_CLASS=software.amazon.msk.auth.iam.IAMClientCallbackHandler
