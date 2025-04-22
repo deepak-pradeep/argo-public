@@ -1,3 +1,5 @@
+ Exclude_Path /var/log/containers/cloudwatch-agent*, /var/log/containers/fluent-bit*, /var/log/containers/aws-node*, /var/log/containers/kube-proxy*
+
 ### Options for Deploying Fluent Bit on EKS:
 
 - Use the official Fluent Bit Helm chart
