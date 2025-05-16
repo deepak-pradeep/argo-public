@@ -13,7 +13,7 @@ permissions:
 jobs:
   terraform:
     name: 'RHEL Packer'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
     - name: Checkout
