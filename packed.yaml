@@ -1,4 +1,4 @@
-name: combine-test
+name: CICD Workflow
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
