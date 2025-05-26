@@ -1,0 +1,115 @@
+name: combine-test
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  # Workflow CD trigger
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release Version (ex: 1.0.1)'
+        type: string
+        required: true
+      envname:
+        description: 'Environment to deploy to'
+        type: choice
+        required: true
+        options:
+          - sandbox
+          - dev
+          - qa
+          - uat
+          - prod
+      deploy_options:
+        description: 'Deployment options'
+        type: string
+        default: 'full'
+        required: false
+
+  # CI on push or PR
+  push:
+    branches-ignore:
+      - main
+
+  pull_request:
+
+  # Scheduled job
+  schedule:
+    - cron: '30 2 * * *'
+
+  # Open source governance on issue edit
+  issues:
+    types: [edited]
+
+jobs:
+  cd-workflow:
+    if: github.event_name == 'workflow_dispatch'
+    name: cd workflow for deployments
+    uses: charlesschwab/samda-action-workflows/.github/workflows/snowflake-deploy-action.yml@v1.1
+    with:
+      release_version: "${{ github.event.inputs.release_version }}"
+      envname: "${{ github.event.inputs.envname }}"
+      deploy_options: "${{ github.event.inputs.deploy_options }}"
+    secrets: inherit
+
+  build-feature:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.base_ref != 'main')
+    name: Build on feature branches (non-main) using the action workflow
+    uses: charlesschwab/samda-action-workflows/.github/workflows/build-action.yml@v1.1
+    with:
+      build_file: "makefile.linux"
+      build_options: "setup lint"
+    secrets: inherit
+
+
+  build-main:
+    name: CI job on PR merge
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' # checks that the closed PR is actually merged and not just closed without merging.
+    uses: charlesschwab/samda-action-workflows/.github/workflows/build-action.yml@v1.1
+    with:
+      build_file: "makefile.linux"
+      build_options: "setup lint"
+    secrets: inherit
+
+  release-main:
+    needs: build-main
+    name: Release job on PR merge
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' # checks that the closed PR is actually merged and not just closed without merging.
+    uses: charlesschwab/samda-action-workflows/.github/workflows/release-action.yml@v1.1
+    secrets: inherit
+
+  check-version-bump: 
+    if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged != true
+    name: Pre-Check Bump Version Update on PR
+    uses: charlesschwab/samda-action-workflows/.github/workflows/validate-action.yml@v1.1
+    secrets: inherit
+
+  mark-reviews:
+    name: Submit Reviewed Dependencies
+    # open issue, contains the required text in the comment
+    if: ${{ vars.BLACKDUCK_ENABLE_OSG_DEPENDENCY_CHECK != 'false' && github.event.issue.state == 'open' &&  github.event_name == 'issues' && contains(github.event.issue.body, '<!-- OSG DEPENDENCY-REPORT') }}
+    uses: charlesschwab/application-security/.github/workflows/opensource-gov.yml@v1
+    secrets: inherit
+    with:
+      run_mode: 'submit-reviews'
+      issue-number: '${{ github.event.issue.number }}'
+      review-user: '${{ github.event.sender.login }}'
+
+  stale:
+    if: github.event_name == 'schedule'
+    permissions:
+      pull-requests: write
+      issues: read
+    runs-on: 
+      group: cloud-base-linux
+    steps:
+      - uses: actions/stale@v9
+        with:
+          stale-pr-message: >
+            'This PR has been marked stale because it has been open for more than 2 weeks with no activity. In order to keep development in sync, PRs should be open for a short time to complete comments, then closed in favor of another direction or a merge.'
+          days-before-pr-stale: 15
+          days-before-issue-stale: -1
+          days-before-close: -1
+          ignore-updates: false
