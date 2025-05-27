@@ -1,11 +1,11 @@
-name: CICD Workflow
+name: combine-test
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 on:
-  # Workflow CD trigger
+  # Manual trigger via UI for CD pipeline
   workflow_dispatch:
     inputs:
       release_version:
@@ -28,22 +28,23 @@ on:
         default: 'full'
         required: false
 
-  # CI on push or PR
+  #  CI pipeline for all branches except main
   push:
     branches-ignore:
       - main
-
+  # Triggered on all PRs (to any branch including main)
   pull_request:
 
-  # Scheduled job
+  # Schedule job for daily at 2:30 AM UTC
   schedule:
     - cron: '30 2 * * *'
 
-  # Open source governance on issue edit
+  # Triggered when an issue is edited (for governance review)
   issues:
     types: [edited]
 
 jobs:
+  # Job triggered manually from GitHub UI (Release pipeline/CD)
   cd-workflow:
     if: github.event_name == 'workflow_dispatch'
     name: cd workflow for deployments
@@ -53,7 +54,8 @@ jobs:
       envname: "${{ github.event.inputs.envname }}"
       deploy_options: "${{ github.event.inputs.deploy_options }}"
     secrets: inherit
-
+    
+  # CI triggered for feature branches (push or PR excluding main)
   build-feature:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.base_ref != 'main')
     name: Build on feature branches (non-main) using the action workflow
@@ -63,7 +65,7 @@ jobs:
       build_options: "setup lint"
     secrets: inherit
 
-
+ #  Run CI build on PR merge into main
   build-main:
     name: CI job on PR merge
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' # checks that the closed PR is actually merged and not just closed without merging.
@@ -79,13 +81,15 @@ jobs:
     if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' # checks that the closed PR is actually merged and not just closed without merging.
     uses: charlesschwab/samda-action-workflows/.github/workflows/release-action.yml@v1.1
     secrets: inherit
-
+    
+  #  Pre-checks for PRs targeting main (but not yet merged)
   check-version-bump: 
     if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main' && github.event.pull_request.merged != true
     name: Pre-Check Bump Version Update on PR
     uses: charlesschwab/samda-action-workflows/.github/workflows/validate-action.yml@v1.1
     secrets: inherit
-
+    
+ # Open source governance step when an issue is edited
   mark-reviews:
     name: Submit Reviewed Dependencies
     # open issue, contains the required text in the comment
@@ -96,7 +100,8 @@ jobs:
       run_mode: 'submit-reviews'
       issue-number: '${{ github.event.issue.number }}'
       review-user: '${{ github.event.sender.login }}'
-
+      
+ # Stale checker job running on schedule
   stale:
     if: github.event_name == 'schedule'
     permissions:
